@@ -1,0 +1,100 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 53% 4%;
+    --foreground: 218 38% 90%;
+    --card: 221 48% 10%;
+    --card-foreground: 218 38% 90%;
+    --popover: 221 48% 10%;
+    --popover-foreground: 218 38% 90%;
+    --primary: 188 86% 53%;
+    --primary-foreground: 225 53% 4%;
+    --secondary: 220 44% 12%;
+    --secondary-foreground: 218 38% 90%;
+    --muted: 220 44% 12%;
+    --muted-foreground: 217 22% 64%;
+    --accent: 188 86% 53%;
+    --accent-foreground: 225 53% 4%;
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 225 53% 4%;
+    --border: 222 44% 18%;
+    --input: 222 44% 18%;
+    --ring: 188 86% 53%;
+    --radius: 0rem;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-radar-bg font-mono text-radar-text antialiased;
+    background-image:
+      radial-gradient(circle at 18% -10%, rgba(34, 211, 238, 0.10), transparent 30rem),
+      radial-gradient(circle at 88% 4%, rgba(52, 211, 153, 0.08), transparent 24rem),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 4px);
+  }
+
+  * {
+    min-width: 0;
+  }
+
+  ::selection {
+    background: rgba(34, 211, 238, 0.28);
+    color: #f8fafc;
+  }
+
+  :focus-visible {
+    outline: 2px solid #22d3ee;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.28);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
