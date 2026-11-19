@@ -1,7 +1,7 @@
 import { Activity, CircleAlert, Crosshair, Target } from 'lucide-react'
 import type { KeyAssetMetrics, PortfolioAnalysis } from '@/types/risk'
-import { formatCurrency, formatPct, formatX, marginTone } from '@/lib/risk'
-import { MetricBlock, RadarPanel, TonePill } from '@/components/radar'
+import { formatCurrency, formatPct, formatX, maintenancePct, marginTone, uniqueAssets } from '@/lib/risk'
+import { MetricBlock, RadarPanel, SegmentedTabs, TonePill } from '@/components/radar'
 import { cn } from '@/lib/utils'
 
 interface KeyAssetPanelProps {
@@ -25,10 +25,10 @@ function addToX2At(metrics: KeyAssetMetrics, price: number, target: number): num
   return Math.max(0, grossAt(metrics, price) / target - equityAt(metrics, price))
 }
 
-function priceTone(metrics: KeyAssetMetrics, price: number, marginTarget: number): 'safe' | 'warn' | 'danger' | 'neutral' {
+function priceTone(metrics: KeyAssetMetrics, price: number, marginTarget: number, maintenance: number): 'safe' | 'warn' | 'danger' | 'neutral' {
   if (metrics.platformMarginUsed <= 0) return 'neutral'
   const projected = (equityAt(metrics, price) / metrics.platformMarginUsed) * 100
-  return marginTone(projected, marginTarget)
+  return marginTone(projected, marginTarget, maintenance)
 }
 
 export default function KeyAssetPanel({
@@ -38,29 +38,36 @@ export default function KeyAssetPanel({
   onAssetChange,
   onPlatformChange,
 }: KeyAssetPanelProps) {
-  const assets = Array.from(new Set(analysis.input.positions.map((position) => position.asset))).sort()
+  const assets = uniqueAssets(analysis.input)
   const candidates = analysis.keyAssets.filter((item) => item.asset === selectedAsset)
   const metrics = candidates.find((item) => item.platformName === selectedPlatform) ?? candidates[0] ?? null
   const targetLeverage = analysis.input.config.leverageTarget
+  const platformConfig = metrics
+    ? analysis.input.platforms.find((platform) => platform.name === metrics.platformName)
+    : undefined
+  const maintenance = platformConfig
+    ? maintenancePct(platformConfig, analysis.input.config)
+    : analysis.input.config.maintenanceMarginPct
+  const covered = metrics != null && Math.abs(metrics.derivativePerUnit) < 1e-9 && metrics.quantityAbs > 0
 
   return (
     <RadarPanel
       title="Niveles del activo clave"
       eyebrow="precio y margen"
-      actions={metrics ? <TonePill tone={marginTone(metrics.currentMarginLevel, analysis.input.config.marginTargetPct)}>{metrics.asset} · {metrics.platformName}</TonePill> : undefined}
+      actions={metrics ? <TonePill tone={marginTone(metrics.currentMarginLevel, analysis.input.config.marginTargetPct, maintenance)}>{metrics.asset} · {metrics.platformName}</TonePill> : undefined}
     >
       <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-4">
           <div>
-            <label htmlFor="asset-select" className="font-mono text-[10px] uppercase tracking-[0.2em] text-radar-muted">activo</label>
-            <select
-              id="asset-select"
-              value={selectedAsset}
-              onChange={(event) => onAssetChange(event.target.value.toUpperCase())}
-              className="mt-2 min-h-11 w-full cursor-pointer border border-radar-border bg-radar-bg px-3 font-mono text-sm text-radar-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-radar-cyan"
-            >
-              {assets.map((asset) => <option key={asset} value={asset}>{asset}</option>)}
-            </select>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-radar-muted">activo</p>
+            <div className="mt-2">
+              <SegmentedTabs
+                ariaLabel="Activo clave"
+                value={selectedAsset}
+                onChange={(value) => onAssetChange(value.toUpperCase())}
+                items={assets.map((asset) => ({ value: asset, label: asset }))}
+              />
+            </div>
           </div>
           <div>
             <label htmlFor="platform-select" className="font-mono text-[10px] uppercase tracking-[0.2em] text-radar-muted">plataforma</label>
@@ -77,7 +84,11 @@ export default function KeyAssetPanel({
           {metrics ? (
             <div className="space-y-4 border border-radar-border bg-radar-bg p-3">
               <MetricBlock label="Precio actual" value={formatCurrency(metrics.currentPrice)} detail={`Entrada media: ${metrics.entryPrice == null ? 'N/A' : formatCurrency(metrics.entryPrice)}`} />
-              <MetricBlock label="Cantidad neta" value={metrics.quantityAbs.toLocaleString('es-ES', { maximumFractionDigits: 6 })} detail={`Exposición: ${formatCurrency(metrics.exposure)}`} />
+              <MetricBlock
+                label="Cantidad neta"
+                value={metrics.quantityNet.toLocaleString('es-ES', { maximumFractionDigits: 6 })}
+                detail={`Bruta: ${metrics.quantityAbs.toLocaleString('es-ES', { maximumFractionDigits: 6 })} · Exposición: ${formatCurrency(metrics.exposure)}`}
+              />
               <MetricBlock
                 label={`Añadir para x${targetLeverage}`}
                 value={formatCurrency(metrics.addToTargetLeverage)}
@@ -119,6 +130,13 @@ export default function KeyAssetPanel({
                 </div>
               ) : null}
 
+              {covered ? (
+                <div className="flex items-start gap-2 border border-radar-warn/40 bg-radar-warn/10 p-3 text-xs leading-5 text-radar-warn">
+                  <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  Hay posiciones largas y cortas del mismo activo: los niveles de precio usan la exposición neta, que es cero o casi cero.
+                </div>
+              ) : null}
+
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[360px] border-collapse font-mono text-xs">
                   <thead>
@@ -131,7 +149,7 @@ export default function KeyAssetPanel({
                   </thead>
                   <tbody>
                     {metrics.marginLevels.map((level) => {
-                      const tone = priceTone(metrics, level.price ?? metrics.currentPrice, analysis.input.config.marginTargetPct)
+                      const tone = priceTone(metrics, level.price ?? metrics.currentPrice, analysis.input.config.marginTargetPct, maintenance)
                       return (
                         <tr key={level.levelPct} className={cn('border-b border-radar-border/70 last:border-0', level.levelPct === analysis.input.config.marginTargetPct && 'bg-radar-cyan/5')}>
                           <td className="py-3 pr-3">

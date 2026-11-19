@@ -8,6 +8,7 @@ export interface PlatformInput {
   type: PlatformType
   equity: number
   marginUsed: number
+  maintenanceMarginPct?: number
   note?: string
 }
 
@@ -26,6 +27,7 @@ export interface RiskConfig {
   keyAsset: string
   marginTargetPct: number
   leverageTarget: number
+  maintenanceMarginPct: number
   marginLevels: number[]
   scenarios: number[]
 }
@@ -70,6 +72,7 @@ export interface KeyAssetMetrics {
   asset: string
   direction: Direction
   quantityAbs: number
+  quantityNet: number
   currentPrice: number
   entryPrice: number | null
   exposure: number
@@ -92,6 +95,8 @@ export interface StressRow {
   marginLevel: number | null
   addToTargetLeverage: number
   addToTargetMargin: number
+  liquidated: boolean
+  liquidatedPlatforms: string[]
   tone: Tone
 }
 

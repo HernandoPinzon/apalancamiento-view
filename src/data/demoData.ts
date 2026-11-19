@@ -55,6 +55,7 @@ export const demoData: RiskInput = {
     keyAsset: 'NVDA',
     marginTargetPct: 200,
     leverageTarget: 2,
+    maintenanceMarginPct: 50,
     marginLevels: [200, 150, 100, 50],
     scenarios: [0, -2.5, -5, -7.5, -10, -15, -20],
   },

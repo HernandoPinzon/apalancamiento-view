@@ -1,6 +1,6 @@
 import { Landmark } from 'lucide-react'
 import type { PortfolioAnalysis } from '@/types/risk'
-import { formatCompact, formatCurrency, formatPct, formatX, leverageTone, marginTone } from '@/lib/risk'
+import { formatCompact, formatCurrency, formatPct, formatX, leverageTone, maintenancePct, marginTone } from '@/lib/risk'
 import { RadarPanel, TonePill } from '@/components/radar'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +37,9 @@ export default function PlatformTable({ analysis }: { analysis: PortfolioAnalysi
           <tbody>
             {analysis.platforms.map((item) => {
               const tone = leverageTone(item.leverage, analysis.input.config.leverageTarget)
-              const margin = marginTone(item.marginLevel, analysis.input.config.marginTargetPct)
+              const maintenance = maintenancePct(item.platform, analysis.input.config)
+              const margin = marginTone(item.marginLevel, analysis.input.config.marginTargetPct, maintenance)
+              const liquidated = item.marginLevel != null && item.marginLevel < maintenance
               return (
                 <tr key={item.platform.id} className="border-b border-radar-border/70 align-top last:border-0 hover:bg-radar-panel2/70">
                   <td className="py-3 pr-3">
@@ -55,6 +57,7 @@ export default function PlatformTable({ analysis }: { analysis: PortfolioAnalysi
                   </td>
                   <td className={cn('py-3 pr-3 text-right tabular-nums', margin === 'neutral' ? 'text-radar-muted' : margin === 'danger' ? 'text-radar-danger' : margin === 'warn' ? 'text-radar-warn' : 'text-radar-safe')}>
                     {item.marginLevel == null ? 'N/A' : formatPct(item.marginLevel)}
+                    {liquidated ? <span className="block text-[10px] uppercase tracking-[0.12em] text-radar-danger">liquidación</span> : null}
                   </td>
                   <td className={cn('py-3 pr-3 text-right tabular-nums', item.addToTargetLeverage > 0 ? 'text-radar-warn' : 'text-radar-safe')}>
                     {formatCurrency(item.addToTargetLeverage)}
@@ -72,6 +75,7 @@ export default function PlatformTable({ analysis }: { analysis: PortfolioAnalysi
       </div>
       <div className="mt-4 border-t border-radar-border pt-3 text-xs leading-5 text-radar-muted">
         <p>“Mov. general al objetivo” supone que todas las posiciones de esa plataforma caen o suben al mismo porcentaje. El nivel de margen solo existe cuando la plataforma informa margen usado.</p>
+        <p className="mt-1">La liquidación se marca cuando el nivel de margen cae por debajo del margen de mantenimiento de la plataforma (50 % por defecto).</p>
       </div>
     </RadarPanel>
   )

@@ -102,3 +102,45 @@ export function RadarGhostButton({
     </button>
   )
 }
+
+export interface SegmentedTabItem {
+  value: string
+  label: string
+}
+
+export function SegmentedTabs({
+  items,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  items: SegmentedTabItem[]
+  value: string
+  onChange: (value: string) => void
+  ariaLabel?: string
+}) {
+  return (
+    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-1">
+      {items.map((item) => {
+        const active = item.value === value
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(item.value)}
+            className={cn(
+              'cursor-pointer border px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-radar-cyan',
+              active
+                ? 'border-radar-cyan/60 bg-radar-cyan/10 text-radar-cyan'
+                : 'border-radar-border bg-transparent text-radar-muted hover:border-radar-cyan/40 hover:text-radar-text',
+            )}
+          >
+            {item.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}

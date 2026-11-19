@@ -25,7 +25,11 @@ export default function StressPanel({ analysis }: { analysis: PortfolioAnalysis 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {input.config.marginLevels.map((level) => {
               const move = moveToMarginLevel(level)
-              const tone = level >= input.config.marginTargetPct ? 'safe' : level >= 100 ? 'warn' : 'danger'
+              const tone = level <= input.config.maintenanceMarginPct || level < 100
+                ? 'danger'
+                : level < input.config.marginTargetPct
+                  ? 'warn'
+                  : 'safe'
               return (
                 <div key={level} className="border border-radar-border/70 bg-radar-panel p-3">
                   <p className={cn('font-mono text-lg font-semibold tabular-nums', tone === 'danger' ? 'text-radar-danger' : tone === 'warn' ? 'text-radar-warn' : 'text-radar-safe')}>
@@ -53,15 +57,18 @@ export default function StressPanel({ analysis }: { analysis: PortfolioAnalysis 
             </thead>
             <tbody>
               {analysis.stress.map((row) => (
-                <tr key={row.scenarioPct} className={cn('border-b border-radar-border/70 last:border-0', row.scenarioPct === 0 && 'bg-radar-cyan/5')}>
+                <tr key={row.scenarioPct} className={cn('border-b border-radar-border/70 last:border-0', row.scenarioPct === 0 && 'bg-radar-cyan/5', row.liquidated && 'bg-radar-danger/10')}>
                   <td className={cn('py-3 pr-3 tabular-nums', row.scenarioPct < 0 ? 'text-radar-warn' : 'text-radar-text')}>{formatPct(row.scenarioPct)}</td>
                   <td className="py-3 pr-3 text-right tabular-nums text-radar-text">{formatCompact(row.exposure)}</td>
                   <td className="py-3 pr-3 text-right tabular-nums text-radar-text">{formatCompact(row.equity)}</td>
                   <td className={cn('py-3 pr-3 text-right tabular-nums font-semibold', row.leverage > targetLeverage * 1.8 ? 'text-radar-danger' : row.leverage > targetLeverage ? 'text-radar-warn' : 'text-radar-safe')}>
                     {formatX(row.leverage)}
                   </td>
-                  <td className={cn('py-3 pr-3 text-right tabular-nums', row.marginLevel == null ? 'text-radar-muted' : row.marginLevel < 100 ? 'text-radar-danger' : row.marginLevel < input.config.marginTargetPct ? 'text-radar-warn' : 'text-radar-safe')}>
-                    {row.marginLevel == null ? 'N/A' : formatPct(row.marginLevel)}
+                  <td
+                    className={cn('py-3 pr-3 text-right tabular-nums', row.liquidated || (row.marginLevel != null && row.marginLevel < 100) ? 'text-radar-danger' : row.marginLevel == null ? 'text-radar-muted' : row.marginLevel < input.config.marginTargetPct ? 'text-radar-warn' : 'text-radar-safe')}
+                    title={row.liquidated ? `Liquidación: ${row.liquidatedPlatforms.length ? row.liquidatedPlatforms.join(', ') : 'patrimonio agotado'}` : undefined}
+                  >
+                    {row.liquidated ? 'liquidación' : row.marginLevel == null ? 'N/A' : formatPct(row.marginLevel)}
                   </td>
                   <td className={cn('py-3 text-right tabular-nums', row.addToTargetLeverage > 0 ? 'text-radar-warn' : 'text-radar-safe')}>
                     {formatCurrency(row.addToTargetLeverage)}
@@ -71,6 +78,9 @@ export default function StressPanel({ analysis }: { analysis: PortfolioAnalysis 
             </tbody>
           </table>
         </div>
+        <p className="text-xs leading-5 text-radar-muted">
+          La liquidación se marca por plataforma cuando su nivel de margen cae por debajo del margen de mantenimiento configurado ({formatPct(input.config.maintenanceMarginPct, 0)} por defecto). Las cifras agregadas de la fila siguen siendo teóricas.
+        </p>
       </div>
     </RadarPanel>
   )

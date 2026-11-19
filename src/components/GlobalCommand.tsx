@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils'
 export default function GlobalCommand({ analysis }: { analysis: PortfolioAnalysis }) {
   const { global, input } = analysis
   const leverageT = leverageTone(global.leverage, input.config.leverageTarget)
-  const marginT = marginTone(global.marginLevel, input.config.marginTargetPct)
-  const progress = Math.min(global.leverage / (input.config.leverageTarget * 3), 1)
+  const marginT = marginTone(global.marginLevel, input.config.marginTargetPct, input.config.maintenanceMarginPct)
+  const progress = Number.isFinite(global.leverage) ? Math.min(global.leverage / (input.config.leverageTarget * 3), 1) : 1
   const targetProgress = Math.min(input.config.leverageTarget / (input.config.leverageTarget * 3), 1)
 
   return (
@@ -49,7 +49,7 @@ export default function GlobalCommand({ analysis }: { analysis: PortfolioAnalysi
           <MetricBlock
             label="Margen global"
             value={global.marginLevel == null ? 'N/A' : formatPct(global.marginLevel)}
-            detail="Informativo; el margen real se aplica por plataforma"
+            detail={`Informativo; liquidación por debajo del ${formatPct(input.config.maintenanceMarginPct, 0)}`}
             tone={marginT}
           />
           <MetricBlock
