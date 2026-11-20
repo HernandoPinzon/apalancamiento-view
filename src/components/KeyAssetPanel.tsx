@@ -1,5 +1,5 @@
 import { Activity, CircleAlert, Crosshair, Target } from 'lucide-react'
-import type { KeyAssetMetrics, PortfolioAnalysis } from '@/types/risk'
+import type { PortfolioAnalysis } from '@/types/risk'
 import { formatCurrency, formatPct, formatX, maintenancePct, marginTone, uniqueAssets } from '@/lib/risk'
 import { MetricBlock, RadarPanel, SegmentedTabs, TonePill } from '@/components/radar'
 import { cn } from '@/lib/utils'
@@ -10,25 +10,6 @@ interface KeyAssetPanelProps {
   selectedPlatform: string
   onAssetChange: (asset: string) => void
   onPlatformChange: (platform: string) => void
-}
-
-function equityAt(metrics: KeyAssetMetrics, price: number): number {
-  return metrics.platformEquity + metrics.derivativePerUnit * (price - metrics.currentPrice)
-}
-
-function grossAt(metrics: KeyAssetMetrics, price: number): number {
-  const otherGross = metrics.platformExposure - metrics.exposure
-  return otherGross + metrics.quantityAbs * price
-}
-
-function addToX2At(metrics: KeyAssetMetrics, price: number, target: number): number {
-  return Math.max(0, grossAt(metrics, price) / target - equityAt(metrics, price))
-}
-
-function priceTone(metrics: KeyAssetMetrics, price: number, marginTarget: number, maintenance: number): 'safe' | 'warn' | 'danger' | 'neutral' {
-  if (metrics.platformMarginUsed <= 0) return 'neutral'
-  const projected = (equityAt(metrics, price) / metrics.platformMarginUsed) * 100
-  return marginTone(projected, marginTarget, maintenance)
 }
 
 export default function KeyAssetPanel({
@@ -126,7 +107,7 @@ export default function KeyAssetPanel({
               {metrics.platformMarginUsed <= 0 ? (
                 <div className="flex items-start gap-2 border border-radar-warn/40 bg-radar-warn/10 p-3 text-xs leading-5 text-radar-warn">
                   <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                  Esta plataforma no informa margen usado. Se muestran los niveles mecánicos, pero no equivalen a una llamada de margen.
+                  Esta plataforma no informa margen usado. Se muestran niveles de caída del activo (10, 20, 30, 40 y 50 %) en lugar de niveles de margen.
                 </div>
               ) : null}
 
@@ -138,34 +119,46 @@ export default function KeyAssetPanel({
               ) : null}
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[360px] border-collapse font-mono text-xs">
+                <table className="w-full min-w-[420px] border-collapse font-mono text-xs">
                   <thead>
                     <tr className="border-b border-radar-border text-left text-[10px] uppercase tracking-[0.16em] text-radar-muted">
                       <th className="py-2 pr-3 font-medium">nivel</th>
                       <th className="py-2 pr-3 text-right font-medium">precio</th>
-                      <th className="py-2 pr-3 text-right font-medium">añadir margen objetivo</th>
-                      <th className="py-2 text-right font-medium">añadir x{targetLeverage}</th>
+                      <th className="py-2 text-right font-medium">añadir para x{targetLeverage}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {metrics.marginLevels.map((level) => {
-                      const tone = priceTone(metrics, level.price ?? metrics.currentPrice, analysis.input.config.marginTargetPct, maintenance)
+                    {metrics.levels.map((level) => {
+                      const isRuin = level.kind === 'ruin'
+                      const direction = level.dropPct <= 0 ? 'cae' : 'sube'
+                      const magnitude = formatPct(Math.abs(level.dropPct))
+                      const tone = level.marginLevelPct != null
+                        ? marginTone(level.marginLevelPct, analysis.input.config.marginTargetPct, maintenance)
+                        : 'neutral'
+                      const toneClass = isRuin || tone === 'danger' ? 'text-radar-danger' : tone === 'warn' ? 'text-radar-warn' : 'text-radar-text'
                       return (
-                        <tr key={level.levelPct} className={cn('border-b border-radar-border/70 last:border-0', level.levelPct === analysis.input.config.marginTargetPct && 'bg-radar-cyan/5')}>
+                        <tr
+                          key={`${level.kind}-${level.marginLevelPct ?? level.dropPct}`}
+                          className={cn('border-b border-radar-border/70 last:border-0', isRuin && 'bg-radar-danger/10')}
+                        >
                           <td className="py-3 pr-3">
                             <div className="flex items-center gap-2">
-                              <Target className={cn('size-3.5', level.levelPct === analysis.input.config.marginTargetPct ? 'text-radar-cyan' : 'text-radar-muted')} aria-hidden="true" />
-                              <span className={level.levelPct === analysis.input.config.marginTargetPct ? 'font-semibold text-radar-cyan' : 'text-radar-text'}>{formatPct(level.levelPct, 0)}</span>
+                              {isRuin
+                                ? <CircleAlert className="size-3.5 shrink-0 text-radar-danger" aria-hidden="true" />
+                                : <Target className="size-3.5 shrink-0 text-radar-muted" aria-hidden="true" />}
+                              <div>
+                                <span className={cn('font-semibold', toneClass)}>
+                                  {level.marginLevelPct != null ? `margen ${formatPct(level.marginLevelPct, 0)}` : isRuin ? 'pierdo todo' : `${direction} ${magnitude}`}
+                                </span>
+                                {level.marginLevelPct != null || isRuin ? (
+                                  <span className="block text-[10px] uppercase tracking-[0.12em] text-radar-muted">{direction} {magnitude}</span>
+                                ) : null}
+                              </div>
                             </div>
                           </td>
-                          <td className={cn('py-3 pr-3 text-right tabular-nums', tone === 'danger' ? 'text-radar-danger' : tone === 'warn' ? 'text-radar-warn' : 'text-radar-text')}>
-                            {level.price == null || !Number.isFinite(level.price) ? 'N/A' : formatCurrency(level.price)}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums text-radar-text">
-                            {level.price == null || !Number.isFinite(level.price) ? 'N/A' : formatCurrency(level.addToMarginTarget)}
-                          </td>
-                          <td className={cn('py-3 text-right tabular-nums', level.price != null && addToX2At(metrics, level.price, targetLeverage) > 0 ? 'text-radar-warn' : 'text-radar-safe')}>
-                            {level.price == null || !Number.isFinite(level.price) ? 'N/A' : formatCurrency(addToX2At(metrics, level.price, targetLeverage))}
+                          <td className="py-3 pr-3 text-right tabular-nums text-radar-text">{formatCurrency(level.price)}</td>
+                          <td className={cn('py-3 text-right tabular-nums font-semibold', level.addToTargetLeverage > 0 ? 'text-radar-warn' : 'text-radar-safe')}>
+                            {formatCurrency(level.addToTargetLeverage)}
                           </td>
                         </tr>
                       )
@@ -173,6 +166,9 @@ export default function KeyAssetPanel({
                   </tbody>
                 </table>
               </div>
+              <p className="text-xs leading-5 text-radar-muted">
+                Cada fila es el punto en el que el activo cae hasta ese nivel. «Añadir para x{targetLeverage}» es el dinero extra necesario para volver al apalancamiento objetivo en ese punto; la última fila es la caída a la que se pierde todo el patrimonio (teórica).
+              </p>
             </>
           ) : (
             <div className="flex min-h-48 items-center justify-center border border-dashed border-radar-border p-6 text-center text-sm text-radar-muted">

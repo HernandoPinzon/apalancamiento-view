@@ -61,10 +61,12 @@ export interface GlobalMetrics {
   broadMoveToMarginTargetPct: number | null
 }
 
-export interface MarginPriceLevel {
-  levelPct: number
-  price: number | null
-  addToMarginTarget: number
+export interface AssetLevel {
+  kind: 'margin' | 'drop' | 'ruin'
+  marginLevelPct: number | null
+  dropPct: number
+  price: number
+  addToTargetLeverage: number
 }
 
 export interface KeyAssetMetrics {
@@ -80,7 +82,7 @@ export interface KeyAssetMetrics {
   platformEquity: number
   platformMarginUsed: number
   platformExposure: number
-  marginLevels: MarginPriceLevel[]
+  levels: AssetLevel[]
   priceToTargetLeverage: number | null
   addToTargetLeverage: number
   currentMarginLevel: number | null

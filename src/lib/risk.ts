@@ -1,4 +1,5 @@
 import type {
+  AssetLevel,
   Direction,
   KeyAssetMetrics,
   PlatformInput,
@@ -18,6 +19,8 @@ export const DEFAULT_MARGIN_TARGET_PCT = 200
 export const DEFAULT_LEVERAGE_TARGET = 2
 export const DEFAULT_MARGIN_LEVELS = [200, 150, 100, 50]
 export const DEFAULT_SCENARIOS = [0, -2.5, -5, -7.5, -10, -15, -20]
+// Niveles de caída del activo (%) para plataformas que no informan margen usado.
+export const DEFAULT_DRAWDOWN_LEVELS = [10, 20, 30, 40, 50]
 
 export const directionSign = (direction: Direction) => (direction === 'Compra' ? 1 : -1)
 
@@ -223,21 +226,61 @@ function buildKeyAssets(input: RiskInput): KeyAssetMetrics[] {
     const otherGross = platformExposure - exposure
     const baseEquity = platform.equity
     const marginUsed = platform.marginUsed
-    const marginLevels = input.config.marginLevels.map((levelPct) => {
-      const targetEquity = (marginUsed * levelPct) / 100
-      let price: number | null = null
-      if (Math.abs(derivativePerUnit) > EPS) {
-        price = currentPrice + (targetEquity - baseEquity) / derivativePerUnit
-      }
-      const equityAtPrice = price == null ? baseEquity : baseEquity + derivativePerUnit * (price - currentPrice)
-      return {
-        levelPct,
-        price,
-        addToMarginTarget: Math.max(0, (marginUsed * input.config.marginTargetPct) / 100 - equityAtPrice),
-      }
-    })
-
     const targetLeverage = Math.max(input.config.leverageTarget, EPS)
+    const addToX2AtPrice = (price: number) => {
+      const equityAtPrice = baseEquity + derivativePerUnit * (price - currentPrice)
+      const grossAtPrice = otherGross + quantityAbs * price
+      return Math.max(0, grossAtPrice / targetLeverage - equityAtPrice)
+    }
+
+    // Precio al que el patrimonio de la plataforma llega a cero ("pierdo todo").
+    const ruinPrice = Math.abs(derivativePerUnit) > EPS
+      ? currentPrice - baseEquity / derivativePerUnit
+      : null
+    const ruinAtZero = ruinPrice == null || ruinPrice <= 0
+    const ruinDropPct = ruinPrice != null && ruinPrice > 0 ? (ruinPrice / currentPrice - 1) * 100 : -100
+
+    const levels: AssetLevel[] = []
+    if (marginUsed > EPS) {
+      for (const levelPct of input.config.marginLevels) {
+        const targetEquity = (marginUsed * levelPct) / 100
+        const price = Math.abs(derivativePerUnit) > EPS
+          ? currentPrice + (targetEquity - baseEquity) / derivativePerUnit
+          : null
+        if (price == null || !Number.isFinite(price) || price <= 0) continue
+        levels.push({
+          kind: 'margin',
+          marginLevelPct: levelPct,
+          dropPct: (price / currentPrice - 1) * 100,
+          price,
+          addToTargetLeverage: addToX2AtPrice(price),
+        })
+      }
+    } else {
+      for (const drop of DEFAULT_DRAWDOWN_LEVELS) {
+        if (ruinDropPct > -drop) continue // no mostrar niveles más allá de la ruina
+        const price = currentPrice * (1 - drop / 100)
+        levels.push({
+          kind: 'drop',
+          marginLevelPct: null,
+          dropPct: -drop,
+          price,
+          addToTargetLeverage: addToX2AtPrice(price),
+        })
+      }
+    }
+
+    if (Math.abs(derivativePerUnit) > EPS) {
+      const price = ruinAtZero ? 0 : (ruinPrice as number)
+      levels.push({
+        kind: 'ruin',
+        marginLevelPct: null,
+        dropPct: ruinAtZero ? -100 : ruinDropPct,
+        price,
+        addToTargetLeverage: addToX2AtPrice(price),
+      })
+    }
+
     const constantEquity = baseEquity - derivativePerUnit * currentPrice
     const denominator = derivativePerUnit - quantityAbs / targetLeverage
     const solvedPrice = Math.abs(denominator) > EPS
@@ -267,7 +310,7 @@ function buildKeyAssets(input: RiskInput): KeyAssetMetrics[] {
       platformEquity: platform.equity,
       platformMarginUsed: marginUsed,
       platformExposure,
-      marginLevels,
+      levels,
       priceToTargetLeverage,
       addToTargetLeverage: Math.max(0, platformExposure / targetLeverage - platform.equity),
       currentMarginLevel,

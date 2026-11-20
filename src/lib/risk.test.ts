@@ -148,6 +148,26 @@ describe('analyzePortfolio', () => {
     expect(keyAsset?.quantityNet).toBe(1)
     expect(analysis.warnings.some((warning) => warning.includes('largas y cortas'))).toBe(true)
   })
+
+  it('calcula los niveles de margen y la fila de ruina', () => {
+    const analysis = analyzePortfolio(makeInput())
+    const levels = analysis.keyAssets[0]?.levels ?? []
+    const margins = levels.filter((level) => level.kind === 'margin')
+    expect(margins.map((level) => level.marginLevelPct)).toEqual([200, 150, 100, 50])
+    expect(margins.map((level) => level.price)).toEqual([20, 15, 10, 5])
+    const ruin = levels.find((level) => level.kind === 'ruin')
+    expect(ruin?.price).toBeCloseTo(0, 6)
+    expect(ruin?.dropPct).toBeCloseTo(-100, 6)
+  })
+
+  it('usa niveles de caída cuando la plataforma no informa margen', () => {
+    const platform: PlatformInput = { id: 'p1', name: 'Cuenta', type: 'cripto', equity: 100, marginUsed: 0 }
+    const analysis = analyzePortfolio(makeInput({ platforms: [platform] }))
+    const levels = analysis.keyAssets[0]?.levels ?? []
+    const drops = levels.filter((level) => level.kind === 'drop')
+    expect(drops.map((level) => level.dropPct)).toEqual([-10, -20, -30, -40, -50])
+    expect(levels.some((level) => level.kind === 'ruin')).toBe(true)
+  })
 })
 
 describe('tonos de margen', () => {
