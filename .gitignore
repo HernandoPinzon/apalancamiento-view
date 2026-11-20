@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Binarios y lockfiles ajenos
+*.AppImage
+pnpm-lock.yaml
