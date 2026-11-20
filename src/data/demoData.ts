@@ -22,9 +22,9 @@ export const demoData: RiskInput = {
       id: 'p-crypto',
       name: 'Cripto',
       type: 'cripto',
-      equity: 110.37,
+      equity: 51.04,
       marginUsed: 0,
-      note: 'Patrimonio neto aproximado (Binance): NVDAB tokenizado de NVIDIA menos deuda USDT/BNB.',
+      note: 'Patrimonio neto aproximado (Binance): 288,19 NVDAB − 236,77 USDT − 0,38 BNB.',
     },
   ],
   positions: [
@@ -50,8 +50,8 @@ export const demoData: RiskInput = {
     { id: 'pos-20', platform: 'Trade.MT5', asset: 'CTSH', direction: 'Compra', quantity: 1, currentPrice: 58.03, entryPrice: 65.3, note: 'Cognizant Technology Solutions Corp. CFD' },
     { id: 'pos-21', platform: 'Trade.MT5', asset: 'NVDA', direction: 'Compra', quantity: 0.2, currentPrice: 125.46, entryPrice: 201.99, note: 'NVIDIA Corp. CFD' },
     { id: 'pos-22', platform: 'Trade.MT5', asset: 'NEM', direction: 'Compra', quantity: 0.5, currentPrice: 94.46, entryPrice: 107.33, note: 'Newmont Mining Corp. CFD · TP 180,00' },
-    { id: 'pos-23', platform: 'Cripto', asset: 'NVDAB', direction: 'Compra', quantity: 2.267224, currentPrice: 125.46, entryPrice: 180.43869489, note: 'Exposición tokenizada a NVIDIA (Binance).' },
-    { id: 'pos-24', platform: 'Cripto', asset: 'BNB', direction: 'Venta', quantity: -0.0006431, currentPrice: 589.26349363, entryPrice: 747.38, note: 'Corto visible en la captura.' },
+    { id: 'pos-23', platform: 'Cripto', asset: 'NVDAB', direction: 'Compra', quantity: 2.267224, currentPrice: 127.11231217, entryPrice: 180.43869489, note: 'Exposición tokenizada a NVIDIA (Binance).' },
+    { id: 'pos-24', platform: 'Cripto', asset: 'BNB', direction: 'Venta', quantity: -0.00072055, currentPrice: 534.05727944, entryPrice: 747.38, note: 'Corto visible en la captura.' },
   ],
   config: {
     keyAsset: 'NVDA',
